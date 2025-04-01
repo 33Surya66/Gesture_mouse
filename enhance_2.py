@@ -24,8 +24,6 @@ prev_mouse_x, prev_mouse_y = 0, 0
 MODE = "MOUSE"
 CLICK_COOLDOWN = 0.5
 last_click_time = 0
-draw_points = []
-is_drawing = False
 
 SHOW_FPS = True
 SMOOTHING_ENABLED = True
@@ -104,15 +102,10 @@ while True:
         instructions = {
             "MOUSE": "Index finger: Move cursor | Thumb-Index pinch: Click",
             "SCROLL": "Index up/down: Scroll | Fist: Back to mouse mode",
-            "DRAW": "Index finger: Draw | Fist: Clear | Open hand: Back to mouse",
             "VOLUME": "Index-Thumb distance: Volume | Fist: Back to mouse"
         }
         cv2.putText(image, instructions[MODE], (10, image_height - 20), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-    
-    if MODE == "DRAW" and draw_points:
-        for i in range(1, len(draw_points)):
-            cv2.line(image, draw_points[i-1], draw_points[i], (0, 0, 255), 5)
     
     if all_hands:
         for hand in all_hands:
@@ -129,7 +122,6 @@ while True:
             thumb_tip = (int(landmarks[4].x * image_width), int(landmarks[4].y * image_height))
             index_tip = (int(landmarks[8].x * image_width), int(landmarks[8].y * image_height))
             middle_tip = (int(landmarks[12].x * image_width), int(landmarks[12].y * image_height))
-            wrist = (int(landmarks[0].x * image_width), int(landmarks[0].y * image_height))
             
             gesture = get_hand_gesture(landmarks)
             cv2.putText(image, f"Gesture: {gesture}", (10, 90), 
@@ -139,9 +131,6 @@ while True:
                 MODE = "MOUSE"
             elif gesture == "VICTORY" and MODE != "SCROLL":
                 MODE = "SCROLL"
-            elif gesture == "OPEN_HAND" and MODE != "DRAW":
-                MODE = "DRAW"
-                draw_points = []
             elif gesture == "THUMB_ONLY" and MODE != "VOLUME":
                 MODE = "VOLUME"
             
@@ -176,6 +165,17 @@ while True:
                         last_click_time = current_time
                         cv2.putText(image, "Right Click!", (middle_tip[0], middle_tip[1] - 20), 
                                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                
+                # Minimize window with thumb + pinky pinch
+                pinky_tip = (int(landmarks[20].x * image_width), int(landmarks[20].y * image_height))
+                distance3 = calculate_distance(thumb_tip[0], thumb_tip[1], pinky_tip[0], pinky_tip[1])
+                if distance3 < 30:
+                    current_time = time.time()
+                    if current_time - last_click_time > CLICK_COOLDOWN:
+                        pyautogui.hotkey('win', 'down')  # Windows minimize shortcut
+                        last_click_time = current_time
+                        cv2.putText(image, "Minimize!", (pinky_tip[0], pinky_tip[1] - 20), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             
             elif MODE == "SCROLL":
                 if gesture == "POINTER":
@@ -190,21 +190,6 @@ while True:
                 
                 if gesture == "FIST":
                     MODE = "MOUSE"
-            
-            elif MODE == "DRAW":
-                if gesture == "POINTER":
-                    if not is_drawing:
-                        is_drawing = True
-                        draw_points = [index_tip]
-                    else:
-                        draw_points.append(index_tip)
-                else:
-                    is_drawing = False
-                
-                if gesture == "FIST":
-                    draw_points = []
-                    cv2.putText(image, "Drawing Cleared", (wrist[0], wrist[1] - 20), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             
             elif MODE == "VOLUME":
                 distance = calculate_distance(thumb_tip[0], thumb_tip[1], index_tip[0], index_tip[1])
@@ -235,9 +220,6 @@ while True:
         MODE = "MOUSE"
     elif key == ord('s'):
         MODE = "SCROLL"
-    elif key == ord('d'):
-        MODE = "DRAW"
-        draw_points = []
     elif key == ord('v'):
         MODE = "VOLUME"
     elif key == ord('f'):
@@ -246,6 +228,8 @@ while True:
         SMOOTHING_ENABLED = not SMOOTHING_ENABLED
     elif key == ord('h'):
         GESTURE_INSTRUCTIONS = not GESTURE_INSTRUCTIONS
+    elif key == ord('a'):
+        pyautogui.hotkey('alt', 'tab')
 
 camera.release()
 cv2.destroyAllWindows()
