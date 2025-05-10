@@ -1,4 +1,4 @@
-# 🖐️ HandMouse
+# 🖐️ GestureMouse
 
 **HandMouse** is a Python-based computer vision project that uses the **MediaPipe** library to track hand movements via webcam and control the system mouse across the entire operating system.
 
